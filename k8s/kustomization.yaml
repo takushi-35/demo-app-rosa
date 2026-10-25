@@ -9,4 +9,4 @@ images:
   - name: demo-app
     newName: image-registry.openshift-image-registry.svc:5000/cicd-demo/demo-app
     # この値は Pipeline (update-manifest タスク) が自動で書き換えます
-    newTag: b16eb081eb488610d0edc02ef0192c731ce4a3c5
+    newTag: 1eeb0acc0e990928b62c7271f0854645d395f3ee
