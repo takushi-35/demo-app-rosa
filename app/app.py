@@ -4,7 +4,7 @@ import socket
 from flask import Flask, jsonify, render_template_string
 
 VERSION = "v1"
-MESSAGE = os.environ.get("APP_MESSAGE", "Hello Red Hat Customers!")
+MESSAGE = os.environ.get("APP_MESSAGE", "Hello from ROSA!")
 COLOR = os.environ.get("APP_COLOR", "#ee0000")
 
 PAGE = """<!doctype html>
