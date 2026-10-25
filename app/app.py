@@ -3,7 +3,7 @@ import socket
 
 from flask import Flask, jsonify, render_template_string
 
-VERSION = "v2"
+VERSION = "v1"
 MESSAGE = os.environ.get("APP_MESSAGE", "Hello Red Hat Customers!")
 COLOR = os.environ.get("APP_COLOR", "#ee0000")
 

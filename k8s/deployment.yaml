@@ -21,7 +21,7 @@ spec:
             - containerPort: 8080
           env:
             - name: APP_MESSAGE
-              value: "Hello from ROSA!"
+              value: "Hello Red Hat Customers!"
             - name: APP_COLOR
               value: "#ee0000"
           readinessProbe:
