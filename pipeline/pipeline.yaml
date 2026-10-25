@@ -1,0 +1,86 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: demo-app-pipeline
+spec:
+  params:
+    - name: git-url
+      type: string
+      description: アプリのリポジトリ URL (https)
+    - name: git-revision
+      type: string
+      default: main
+    - name: git-branch
+      type: string
+      default: main
+      description: マニフェスト更新を push するブランチ
+    - name: image-name
+      type: string
+      default: image-registry.openshift-image-registry.svc:5000/cicd-demo/demo-app
+  workspaces:
+    - name: shared-data
+  tasks:
+    # 1. ソース取得 (OpenShift Pipelines 同梱タスク)
+    - name: fetch-source
+      taskRef:
+        resolver: cluster
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: git-clone
+          - name: namespace
+            value: openshift-pipelines
+      params:
+        - name: URL
+          value: $(params.git-url)
+        - name: REVISION
+          value: $(params.git-revision)
+      workspaces:
+        - name: output
+          workspace: shared-data
+
+    # 2. ユニットテスト
+    - name: run-tests
+      runAfter: [fetch-source]
+      taskRef:
+        name: unit-test
+      workspaces:
+        - name: source
+          workspace: shared-data
+
+    # 3. イメージビルド & 内部レジストリへ push (OpenShift Pipelines 同梱タスク)
+    - name: build-image
+      runAfter: [run-tests]
+      taskRef:
+        resolver: cluster
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: buildah
+          - name: namespace
+            value: openshift-pipelines
+      params:
+        - name: IMAGE
+          value: $(params.image-name):$(tasks.fetch-source.results.COMMIT)
+        - name: DOCKERFILE
+          value: ./Containerfile
+        - name: CONTEXT
+          value: .
+      workspaces:
+        - name: source
+          workspace: shared-data
+
+    # 4. マニフェストのイメージタグを更新して Git に push → Argo CD が同期
+    - name: update-manifest
+      runAfter: [build-image]
+      taskRef:
+        name: update-manifest
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-branch
+          value: $(params.git-branch)
+        - name: image-tag
+          value: $(tasks.fetch-source.results.COMMIT)

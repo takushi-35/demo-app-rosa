@@ -1,0 +1,22 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: unit-test
+spec:
+  description: アプリの依存関係をインストールして pytest を実行します
+  workspaces:
+    - name: source
+  steps:
+    - name: pytest
+      image: registry.access.redhat.com/ubi9/python-312:latest
+      workingDir: $(workspaces.source.path)/app
+      env:
+        - name: HOME
+          value: /tmp
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+        python -m venv /tmp/venv
+        source /tmp/venv/bin/activate
+        pip install --no-cache-dir -q -r requirements-dev.txt
+        pytest -v -p no:cacheprovider

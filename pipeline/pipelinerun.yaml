@@ -1,0 +1,24 @@
+# 手動実行用: oc create -f pipeline/pipelinerun.yaml
+# (scripts/run-pipeline.sh から git-url を差し込んで使います)
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: demo-app-pipeline-run-
+spec:
+  pipelineRef:
+    name: demo-app-pipeline
+  params:
+    - name: git-url
+      value: GIT_REPO_URL
+    - name: git-revision
+      value: main
+  taskRunTemplate:
+    serviceAccountName: pipeline
+  workspaces:
+    - name: shared-data
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 1Gi

@@ -1,0 +1,65 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: update-manifest
+spec:
+  description: |
+    k8s/kustomization.yaml のイメージタグを書き換えて Git に push します。
+    Argo CD がこの変更を検知してデプロイします (GitOps)。
+  params:
+    - name: git-url
+      type: string
+    - name: git-branch
+      type: string
+      default: main
+    - name: image-tag
+      type: string
+    - name: kustomization-path
+      type: string
+      default: k8s/kustomization.yaml
+  steps:
+    - name: update-and-push
+      image: registry.access.redhat.com/ubi9/python-312:latest
+      env:
+        - name: HOME
+          value: /tmp
+        - name: GIT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: username
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: git-credentials
+              key: token
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        repo_path="$(echo '$(params.git-url)' | sed -E 's#^https?://##')"
+        git clone --depth 1 --branch '$(params.git-branch)' \
+          "https://${GIT_USERNAME}:${GIT_TOKEN}@${repo_path}" /tmp/repo
+        cd /tmp/repo
+
+        git config user.name "tekton-bot"
+        git config user.email "tekton-bot@example.com"
+
+        sed -i -E 's#^([[:space:]]*newTag:).*#\1 $(params.image-tag)#' '$(params.kustomization-path)'
+        git --no-pager diff
+
+        if git diff --quiet; then
+          echo "変更なし。push をスキップします"
+          exit 0
+        fi
+
+        git commit -am "chore: update image tag to $(params.image-tag) [skip ci]"
+
+        # 同時実行で push が競合した場合に備えてリトライ
+        for i in 1 2 3; do
+          if git push origin 'HEAD:$(params.git-branch)'; then
+            exit 0
+          fi
+          git pull --rebase origin '$(params.git-branch)'
+        done
+        exit 1
